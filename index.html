@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instagram • Faiz</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .feed-img { object-fit: cover; }
+    .post { transition: all 0.2s; }
+  </style>
+</head>
+<body class="bg-black text-white min-h-screen pb-16">
+
+  <!-- Header -->
+  <div class="fixed top-0 left-0 right-0 bg-black border-b border-gray-800 z-50">
+    <div class="max-w-xl mx-auto flex justify-between items-center px-4 py-3">
+      <h1 class="text-2xl font-bold tracking-tighter">Instagram</h1>
+      <div class="flex gap-4">
+        <i class="fa-solid fa-heart text-xl"></i>
+        <i class="fa-solid fa-paper-plane text-xl"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feed -->
+  <div class="max-w-xl mx-auto pt-14" id="feed"></div>
+
+  <!-- Create Post Modal -->
+  <div id="createModal" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+    <div class="bg-zinc-900 w-full max-w-lg mx-4 rounded-2xl overflow-hidden">
+      <div class="p-4 border-b border-gray-700 flex justify-between">
+        <button onclick="closeModal()" class="text-gray-400">Batal</button>
+        <p class="font-semibold">Buat Post Baru</p>
+        <button onclick="createPost()" class="text-blue-500 font-semibold">Kongsi</button>
+      </div>
+      
+      <div class="p-4">
+        <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="previewImage(event)">
+        <div onclick="document.getElementById('imageInput').click()" 
+             class="border-2 border-dashed border-gray-600 h-80 flex flex-col items-center justify-center rounded-xl cursor-pointer">
+          <i class="fa-solid fa-cloud-arrow-up text-4xl mb-3 text-gray-500"></i>
+          <p class="text-gray-400">Upload Gambar</p>
+        </div>
+        
+        <img id="preview" class="hidden w-full h-80 object-cover rounded-xl mt-4">
+        
+        <textarea id="caption" rows="3" 
+          class="w-full bg-zinc-800 rounded-xl p-4 mt-4 text-white placeholder-gray-500 focus:outline-none"
+          placeholder="Tulis caption..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <div class="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 z-50">
+    <div class="max-w-xl mx-auto flex justify-around items-center py-3 text-2xl">
+      <button onclick="switchTab(0)" class="active-tab"><i class="fa-solid fa-house"></i></button>
+      <button onclick="switchTab(1)"><i class="fa-solid fa-magnifying-glass"></i></button>
+      <button onclick="showCreateModal()" class="text-3xl -mt-2"><i class="fa-solid fa-square-plus"></i></button>
+      <button onclick="switchTab(3)"><i class="fa-solid fa-play"></i></button>
+      <button onclick="switchTab(4)"><i class="fa-solid fa-user"></i></button>
+    </div>
+  </div>
+
+  <script>
+    let posts = JSON.parse(localStorage.getItem('igPosts')) || [];
+
+    function renderFeed() {
+      const feed = document.getElementById('feed');
+      feed.innerHTML = '';
+
+      if (posts.length === 0) {
+        feed.innerHTML = `
+          <div class="text-center py-20 text-gray-500">
+            <i class="fa-solid fa-camera text-6xl mb-4"></i>
+            <p>Tiada post lagi. Buat post pertama kau!</p>
+          </div>`;
+        return;
+      }
+
+      posts.forEach((post, index) => {
+        const postHTML = `
+          <div class="post bg-zinc-900 border-b border-gray-800 pb-4 mb-6">
+            <div class="flex items-center justify-between px-4 py-3">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-gradient-to-tr from-pink-500 to-yellow-500 rounded-full flex items-center justify-center">
+                  <div class="w-7 h-7 bg-zinc-900 rounded-full"></div>
+                </div>
+                <div>
+                  <p class="font-semibold">faiz_user</p>
+                  <p class="text-xs text-gray-500">Ipoh • Malaysia</p>
+                </div>
+              </div>
+              <i class="fa-solid fa-ellipsis"></i>
+            </div>
+
+            <div class="relative" ondblclick="likePost(${index})">
+              <img src="${post.image}" class="w-full feed-img" style="max-height: 500px;">
+              ${post.liked ? `<i class="fa-solid fa-heart text-red-500 text-7xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 drop-shadow-lg"></i>` : ''}
+            </div>
+
+            <div class="px-4 pt-3 flex gap-5 text-2xl">
+              <button onclick="likePost(${index})">
+                <i class="${post.liked ? 'fa-solid text-red-500' : 'fa-regular'} fa-heart"></i>
+              </button>
+              <button onclick="focusComment(${index})"><i class="fa-regular fa-comment"></i></button>
+              <i class="fa-regular fa-paper-plane"></i>
+              <i class="fa-regular fa-bookmark ml-auto"></i>
+            </div>
+
+            <div class="px-4 pt-1">
+              <p class="font-semibold">${post.likes} sukaan</p>
+              <p><span class="font-semibold">faiz_user</span> ${post.caption}</p>
+              ${post.comments.map(c => `<p class="text-sm"><span class="font-semibold">${c.user}</span> ${c.text}</p>`).join('')}
+            </div>
+
+            <div class="px-4 mt-2">
+              <input type="text" id="comment-input-${index}" 
+                class="w-full bg-transparent text-sm focus:outline-none" 
+                placeholder="Tambah komen..." 
+                onkeypress="if(event.key === 'Enter') addComment(${index}, this.value); this.value = '';">
+            </div>
+          </div>`;
+        feed.innerHTML += postHTML;
+      });
+    }
+
+    function previewImage(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        document.getElementById('preview').src = ev.target.result;
+        document.getElementById('preview').classList.remove('hidden');
+      }
+      reader.readAsDataURL(file);
+    }
+
+    function showCreateModal() {
+      document.getElementById('createModal').classList.remove('hidden');
+      document.getElementById('preview').classList.add('hidden');
+      document.getElementById('caption').value = '';
+    }
+
+    function closeModal() {
+      document.getElementById('createModal').classList.add('hidden');
+    }
+
+    function createPost() {
+      const preview = document.getElementById('preview');
+      const caption = document.getElementById('caption').value.trim();
+
+      if (!preview.src || preview.classList.contains('hidden')) {
+        alert("Sila pilih gambar dulu!");
+        return;
+      }
+
+      const newPost = {
+        image: preview.src,
+        caption: caption || "Tiada caption",
+        likes: 0,
+        liked: false,
+        comments: []
+      };
+
+      posts.unshift(newPost);
+      localStorage.setItem('igPosts', JSON.stringify(posts));
+      closeModal();
+      renderFeed();
+    }
+
+    function likePost(index) {
+      posts[index].liked = !posts[index].liked;
+      if (posts[index].liked) posts[index].likes++;
+      else posts[index].likes--;
+      localStorage.setItem('igPosts', JSON.stringify(posts));
+      renderFeed();
+    }
+
+    function addComment(index, text) {
+      if (!text.trim()) return;
+      posts[index].comments.push({ user: "kau", text: text.trim() });
+      localStorage.setItem('igPosts', JSON.stringify(posts));
+      renderFeed();
+    }
+
+    function focusComment(index) {
+      setTimeout(() => {
+        const input = document.getElementById(`comment-input-${index}`);
+        if (input) input.focus();
+      }, 100);
+    }
+
+    function switchTab(n) {
+      // Simple, tak buat fungsi lain lagi
+      alert("Tab ni belum diaktifkan lagi 😊");
+    }
+
+    // Init
+    renderFeed();
+  </script>
+</body>
+</html>
